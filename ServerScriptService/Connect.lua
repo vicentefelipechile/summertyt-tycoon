@@ -3,6 +3,7 @@
 --------------------------------]]--
 
 local debugging = true
+local ownerID = 182030639
 
 local players = game:GetService("Players")
 local database = game:GetService("DataStoreService"):GetDataStore("tycoon")
@@ -79,10 +80,12 @@ players.PlayerAdded:Connect(function(ply)
         ply:SetAttribute("money", money.Value)
         ply:SetAttribute("rebirth", rebirth.Value)
 
-        if ply.UserId == 182030639 then
+        --[[
+        if ply.UserId == ownerID then
             money.Value = 7000
             ply:SetAttribute("money", money.Value)
         end
+        --]]
     end)
 
 
