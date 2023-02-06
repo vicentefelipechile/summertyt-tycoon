@@ -58,6 +58,9 @@ for _, buttons in ipairs( script.Parent.Parent.Buttons:GetChildren() ) do
 
         ply.leaderstats.Dinero.Value = ply.leaderstats.Dinero.Value - value
 
+        local buyed = fallbackBlocks:GetAttribute("buyed")
+        fallbackBlocks:SetAttribute("buyed", buyed + 1)
+
         stuff[ buttons:GetAttribute("modelToBuy") ].enabled = true
 
         local model = stuff[ buttons:GetAttribute("modelToBuy") ].ent
@@ -70,20 +73,19 @@ for _, buttons in ipairs( script.Parent.Parent.Buttons:GetChildren() ) do
                         Remove previus Models
         --------------------------------------------]]--
 
-        local targetmodel = fallbackBlocks:FindFirstChild( buttons:GetAttribute("_removetarget") )
-        if targetmodel then
-            local removemodel = targetmodel:FindFirstChild( targetmodel:GetAttribute("_removemodel") )
+        local previusModel =    fallbackBlocks:FindFirstChild( buttons:GetAttribute("_removetarget") ) or
+                                fallbackBlocks:FindFirstChild( buttons:GetAttribute("dependency") ) or
+                                nil
 
-            if removemodel then
-                removemodel.Parent = nil
-            end
-        else
-            targetmodel = fallbackBlocks:FindFirstChild( buttons:GetAttribute("dependency") )
-            local removemodel = targetmodel:FindFirstChild( targetmodel:GetAttribute("_removemodel") )
+        previusModel = buttons:GetAttribute("_removetarget") ~= ( "none" or "" ) and previusModel or nil
 
-            if targetmodel then
-                targetmodel.Parent = nil
+        if previusModel and previusModel:GetAttribute("_removemodel") ~= nil then
+
+            local removeModel = previusModel:FindFirstChild( previusModel:GetAttribute("_removemodel") )
+            if removeModel then
+                removeModel.Parent = nil
             end
+
         end
 
         wait()
@@ -139,6 +141,9 @@ for _, block in ipairs( script.Parent.Parent:GetChildren() ) do
 
         block.Display.Touched:Connect(function(ent)
 
+            --[[--------------------------------------------
+                            Check Owner
+            --------------------------------------------]]--
             if fallbackBlocks:GetAttribute("owner") == 0 then return end
 
             local ply = game.Players:GetPlayerFromCharacter(ent.Parent)
@@ -146,11 +151,22 @@ for _, block in ipairs( script.Parent.Parent:GetChildren() ) do
 
             if ply.UserId ~= fallbackBlocks:GetAttribute("owner") then return end
 
+
+            --[[--------------------------------------------
+                            Check Money
+            --------------------------------------------]]--
             local playerMoney = ply.leaderstats.Dinero.Value
             local value = block:GetAttribute("value") or 0
             if playerMoney < value then return end
 
+
+            --[[--------------------------------------------
+                        Initialize Buy Script
+            --------------------------------------------]]--
             ply.leaderstats.Dinero.Value = ply.leaderstats.Dinero.Value - value
+
+            local buyed = fallbackBlocks:GetAttribute("buyed")
+            fallbackBlocks:SetAttribute("buyed", buyed + 1)
 
             stuff[ block:GetAttribute("modelToBuy") ].enabled = true
 
@@ -164,20 +180,19 @@ for _, block in ipairs( script.Parent.Parent:GetChildren() ) do
                             Remove Models
             --------------------------------------------]]--
 
-            local targetmodel = fallbackBlocks:FindFirstChild( block:GetAttribute("_removetarget") )
-            if targetmodel then
-                local removemodel = targetmodel:FindFirstChild( targetmodel:GetAttribute("_removemodel") )
+            local previusModel =    fallbackBlocks:FindFirstChild( block:GetAttribute("_removetarget") ) or
+                                    fallbackBlocks:FindFirstChild( block:GetAttribute("dependency") ) or
+                                    nil
 
-                if removemodel then
-                    removemodel.Parent = nil
-                end
-            else
-                targetmodel = fallbackBlocks:FindFirstChild( block:GetAttribute("dependency") )
-                local removemodel = targetmodel:FindFirstChild( targetmodel:GetAttribute("_removemodel") )
+            previusModel = block:GetAttribute("_removetarget") ~= ( "none" or "" ) and previusModel or nil
 
-                if targetmodel then
-                    targetmodel.Parent = nil
+            if previusModel and previusModel:GetAttribute("_removemodel") ~= nil then
+
+                local removeModel = previusModel:FindFirstChild( previusModel:GetAttribute("_removemodel") )
+                if removeModel then
+                    removeModel.Parent = nil
                 end
+
             end
 
             wait()
@@ -340,13 +355,39 @@ for _, block in ipairs( script.Parent.Parent:GetChildren() ) do
 end
 
 
+
+
+
 --[[----------------------------------------------------
                     Post-Script
 ----------------------------------------------------]]--
-local breakwhile = false
 
-function resetTycoon()
+local stuffCount = 0
+for _, b in pairs(stuff) do
+    if b.ent:GetAttribute("isButton") then continue end
+    if b.ignore then continue end
+
+    stuffCount = stuffCount + 1
+end
+
+local rebirthButton = script.Parent["Rebirth Button"]
+
+fallbackBlocks:GetAttributeChangedSignal("buyed"):Connect(function()
+    local count = fallbackBlocks:GetAttribute("buyed")
+
+    rebirthButton.Display.BillboardGui.Frame.Frame.Text.Text = count .. " / " .. stuffCount
+end)
+
+
+
+
+
+function resetTycoon(ply)
     fallbackBlocks:SetAttribute("money", 0)
+    
+    if ply then
+        fallbackBlocks:SetAttribute("buyed", 0)
+    end
     
     local reenable = {}
     
@@ -376,9 +417,54 @@ function resetTycoon()
     for _, block in ipairs(reenable) do
         block.Parent = fallbackBlocks
     end
+
+    if fallbackBlocks:GetAttribute("owner") == 0 then
+        rebirthButton.Parent = nil
+    end
 end
 resetTycoon()
 
+
+
+
+
+--[[----------------------------------------------------
+                    Rebirth-Script
+----------------------------------------------------]]--
+
+rebirthButton.Display.Touched:Connect(function(ent)
+    if fallbackBlocks:GetAttribute("owner") == 0 then return end
+
+    local ply = players:GetPlayerFromCharacter(ent.Parent)
+    if not ply then return end
+
+    if ply.UserId ~= fallbackBlocks:GetAttribute("owner") then return end
+
+    local count = 0
+    for name, block in pairs(stuff) do
+        if block.ent:GetAttribute("isButton") then continue end
+        if block.ignore then continue end
+
+        if block.enabled then
+            count = count + 1
+        end
+    end
+
+    local rebirths = ply.leaderstats.Reinicios.Value
+    if count == stuffCount then
+        ply:SetAttribute("buyed", "[]")
+        ply.leaderstats.Reinicios.Value = rebirths + 1
+        ply.leaderstats.Dinero.Value = 0
+        resetTycoon(ply)
+    end
+end)
+
+
+
+
+--[[----------------------------------------------------
+                    Setting Owner
+----------------------------------------------------]]--
 fallbackBlocks:GetAttributeChangedSignal("owner"):Connect(function()
     local newOwner = fallbackBlocks:GetAttribute("owner")
 
@@ -390,16 +476,21 @@ fallbackBlocks:GetAttributeChangedSignal("owner"):Connect(function()
     local ply = players:GetPlayerByUserId(newOwner)
     if not ply then return end
     
+    rebirthButton.Parent = script.Parent
+    
     local tbl = ply:GetAttribute("buyed")
     if tbl == "[]" then return end
 
     local buyed = json.decode(tbl) or {}
      
     if type(buyed) == "string" then return end
-    
+
+    local buyedCount = 0
     for item in pairs(buyed) do
         if not stuff[ item ] then continue end
 
+        buyedCount = buyedCount + 1
+        
         stuff[ item ]["enabled"] = true
         stuff[ item ]["ent"].Parent = fallbackBlocks
         stuff[ item ]["ent"]:SetAttribute("buyed", true)
@@ -450,6 +541,8 @@ fallbackBlocks:GetAttributeChangedSignal("owner"):Connect(function()
             block["enabled"] = true
         end
     end
+    
+    fallbackBlocks:SetAttribute("buyed", buyedCount)
 end)
 
 
@@ -464,17 +557,3 @@ script.Parent.TycoonSpawn.Touched:Connect(function(ent)
     ply:SetAttribute("hasTycoon", true)
     fallbackBlocks:SetAttribute("owner", ply.UserId)
 end)
-
---[[
-local Integer = 0
-while not breakwhile do
-
-    Integer = Integer >= 0.7 and -0.8 or Integer + 0.1
-
-    for _, Block in pairs(conveyors) do
-        Block.Color = Color3.new( math.abs(Integer), 1, 1)
-    end
-
-    wait(0.4)
-end
---]]
