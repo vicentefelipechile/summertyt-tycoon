@@ -23,9 +23,8 @@ function json.encode(tbl)
 end
 
 
-
-
 local conveyors = {}
+local buttons = {}
 local stuff = {}
 
 for _, buttons in ipairs( script.Parent.Parent.Buttons:GetChildren() ) do
@@ -122,97 +121,6 @@ for _, block in ipairs( script.Parent.Parent:GetChildren() ) do
             ignore = true,
             enabled = true
         }
-    end
-
-
-    --[[--------------------------------------------
-            Buy Items (Backward compatibility)
-    --------------------------------------------]]--
-    if block:GetAttribute("isButton") then
-        if stuff[block.Name] ~= nil then continue end
-
-        stuff[block.Name] = stuff[block.Name] or {
-            ent = block,
-            enabled = false
-        }
-
-        local buttonScript = script.BuyScript:Clone()
-        buttonScript.Parent = block
-
-        block.Display.Touched:Connect(function(ent)
-
-            --[[--------------------------------------------
-                            Check Owner
-            --------------------------------------------]]--
-            if fallbackBlocks:GetAttribute("owner") == 0 then return end
-
-            local ply = game.Players:GetPlayerFromCharacter(ent.Parent)
-            if not ply then return end
-
-            if ply.UserId ~= fallbackBlocks:GetAttribute("owner") then return end
-
-
-            --[[--------------------------------------------
-                            Check Money
-            --------------------------------------------]]--
-            local playerMoney = ply.leaderstats.Dinero.Value
-            local value = block:GetAttribute("value") or 0
-            if playerMoney < value then return end
-
-
-            --[[--------------------------------------------
-                        Initialize Buy Script
-            --------------------------------------------]]--
-            ply.leaderstats.Dinero.Value = ply.leaderstats.Dinero.Value - value
-
-            local buyed = fallbackBlocks:GetAttribute("buyed")
-            fallbackBlocks:SetAttribute("buyed", buyed + 1)
-
-            stuff[ block:GetAttribute("modelToBuy") ].enabled = true
-
-            local model = stuff[ block:GetAttribute("modelToBuy") ].ent
-            model.Parent = script.Parent.Parent
-            block.Parent = nil
-
-
-
-            --[[--------------------------------------------
-                            Remove Models
-            --------------------------------------------]]--
-
-            local previusModel =    fallbackBlocks:FindFirstChild( block:GetAttribute("_removetarget") ) or
-                                    fallbackBlocks:FindFirstChild( block:GetAttribute("dependency") ) or
-                                    nil
-
-            previusModel = block:GetAttribute("_removetarget") ~= ( "none" or "" ) and previusModel or nil
-
-            if previusModel and previusModel:GetAttribute("_removemodel") ~= nil then
-
-                local removeModel = previusModel:FindFirstChild( previusModel:GetAttribute("_removemodel") )
-                if removeModel then
-                    removeModel.Parent = nil
-                end
-
-            end
-
-            wait()
-            model:SetAttribute("buyed", true)
-
-        end)
-
-        if block:GetAttribute("dependency") then
-            local dependency = block:GetAttribute("dependency")
-            if not fallbackBlocks:FindFirstChild(dependency) then continue end
-
-            fallbackBlocks[ dependency ]:GetAttributeChangedSignal("buyed"):Connect(function()
-
-                if stuff[ dependency ]["ent"]:GetAttribute("buyed") == false then return end
-                block.Parent = fallbackBlocks
-
-            end)
-        end
-
-        continue
     end
 
 
